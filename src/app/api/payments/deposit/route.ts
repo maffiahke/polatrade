@@ -24,8 +24,13 @@ async function loadLimits() {
 }
 
 export async function GET() {
-  const limits = await loadLimits();
-  return NextResponse.json({ minDeposit: limits.minDeposit, maxDeposit: limits.maxDeposit });
+  try {
+    const limits = await loadLimits();
+    return NextResponse.json({ minDeposit: limits.minDeposit, maxDeposit: limits.maxDeposit });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load deposit limits";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
