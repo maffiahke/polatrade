@@ -9,6 +9,7 @@ const SETTING_KEYS = [
   "maxDeposit",
   "minWithdrawal",
   "maxWithdrawal",
+  "demoInitialBalance",
 ] as const;
 
 const DEFAULTS: Record<string, string> = {
@@ -16,6 +17,7 @@ const DEFAULTS: Record<string, string> = {
   maxDeposit: "10000",
   minWithdrawal: "100",
   maxWithdrawal: "150000",
+  demoInitialBalance: "10000",
 };
 
 async function checkAdmin() {

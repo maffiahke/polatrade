@@ -20,8 +20,15 @@ export async function GET() {
   return NextResponse.json({ demoBalance: user.demoBalance });
 }
 
+async function getDemoInitialBalance(): Promise<number> {
+  const setting = await prisma.siteSetting.findUnique({
+    where: { key: "demoInitialBalance" },
+  });
+  return Number(setting?.value ?? 10000);
+}
+
 // Resets or tops up the demo balance, e.g. a "Reset Demo Account" button.
-// Body: { demoBalance?: number } — defaults to 10000 if not provided.
+// Body: { demoBalance?: number } — defaults to site setting if not provided.
 export async function PATCH(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -30,7 +37,8 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const amount = typeof body?.demoBalance === "number" ? body.demoBalance : 10000;
+    const defaultBalance = await getDemoInitialBalance();
+    const amount = typeof body?.demoBalance === "number" ? body.demoBalance : defaultBalance;
 
     const user = await prisma.user.update({
       where: { id: session.user.id },

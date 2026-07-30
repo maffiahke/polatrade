@@ -26,8 +26,15 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password);
+
+    // Fetch the admin-configured demo initial balance
+    const demoSetting = await prisma.siteSetting.findUnique({
+      where: { key: "demoInitialBalance" },
+    });
+    const demoInitialBalance = Number(demoSetting?.value ?? 10000);
+
     const user = await prisma.user.create({
-      data: { email, passwordHash, name, phone },
+      data: { email, passwordHash, name, phone, demoBalance: demoInitialBalance },
       select: { id: true, email: true, name: true },
     });
 

@@ -8,6 +8,7 @@ interface Settings {
   maxDeposit: number;
   minWithdrawal: number;
   maxWithdrawal: number;
+  demoInitialBalance: number;
 }
 
 export default function AdminSettingsPage() {
@@ -66,6 +67,23 @@ export default function AdminSettingsPage() {
       <p className="text-sm text-gray-400 mb-6">Configure deposit and withdrawal limits</p>
 
       <div className="space-y-6">
+        {/* Demo Account */}
+        <section className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-white mb-4">Demo Account</h2>
+          <div>
+            <label className="text-xs text-gray-400 block mb-1.5">
+              Initial Demo Balance (USD) — given to new users and when demo is reset
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={settings?.demoInitialBalance ?? 10000}
+              onChange={(e) => update("demoInitialBalance", e.target.value)}
+              className="w-full bg-[#141822] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#833ab4]/50"
+            />
+          </div>
+        </section>
+
         {/* Deposit Limits */}
         <section className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-5">
           <h2 className="text-sm font-bold text-white mb-4">Deposit Limits</h2>
