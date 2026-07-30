@@ -25,7 +25,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 ### Default admin login
-- **Email:** admin@summittrades.com
+- **Email:** admin@summitdeno.com
 - **Password:** Admin@123
 
 ## Pages
