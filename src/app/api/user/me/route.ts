@@ -19,6 +19,7 @@ export async function GET() {
       phone: true,
       balance: true,
       demoBalance: true,
+      winRate: true,
       createdAt: true,
     },
   });

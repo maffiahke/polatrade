@@ -10,14 +10,14 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { demoBalance: true },
+    select: { demoBalance: true, winRate: true },
   });
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ demoBalance: user.demoBalance });
+  return NextResponse.json({ demoBalance: user.demoBalance, winRate: user.winRate });
 }
 
 async function getDemoInitialBalance(): Promise<number> {

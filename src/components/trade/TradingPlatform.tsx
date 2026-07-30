@@ -123,6 +123,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   };
 
   const [demoBalance, setDemoBalance] = useState(10000);
+  const [userWinRate, setUserWinRate] = useState<number | null>(null);
   const displayBalance = accountMode === "real" ? balance : demoBalance;
   const [timeLeft, setTimeLeft] = useState<Record<string, number>>({});
 
@@ -164,6 +165,9 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
       if (demoData && typeof demoData.demoBalance === "number") {
         setDemoBalance(demoData.demoBalance);
+      }
+      if (demoData && typeof demoData.winRate === "number") {
+        setUserWinRate(demoData.winRate);
       }
 
       if (posData) {
@@ -441,7 +445,13 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           return p;
         }
 
-        const won = p.direction === "up" ? price > p.openPrice : price < p.openPrice;
+        // Demo trades: use winRate if admin configured one
+        const won =
+          userWinRate != null && userWinRate > 0
+            ? Math.random() * 100 < userWinRate
+            : p.direction === "up"
+              ? price > p.openPrice
+              : price < p.openPrice;
         const profit = won ? p.payout - p.stake : -p.stake;
 
         // Demo: stake was already deducted at placement.
@@ -458,7 +468,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         return { ...p, status: won ? "won" : "lost", profit };
       })
     );
-  }, [price, isAuthenticated, syncFromApi, pushToast]);
+  }, [price, isAuthenticated, syncFromApi, pushToast, userWinRate]);
 
   // Timer countdown
   useEffect(() => {
