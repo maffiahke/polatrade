@@ -1324,7 +1324,7 @@ function LiveDigitTracker({ price, priceHistory }: { price: number; priceHistory
                 <div
                   className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-bold border-2 transition-all ${
                     isCurrent
-                      ? "bg-gradient-brand border-[#833ab4] text-white scale-110 shadow-[0_0_12px_rgba(131,58,180,0.5)]"
+                      ? "bg-gradient-brand border-[#009e37] text-white scale-110 shadow-[0_0_12px_rgba(0,158,55,0.5)]"
                       : isHot
                         ? "bg-transparent border-emerald-500 text-emerald-400"
                         : "bg-transparent border-white/15 text-gray-400"

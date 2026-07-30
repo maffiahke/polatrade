@@ -10,7 +10,7 @@
 
 /* Brand gradient: purple → red → lime */
 :root {
-  --gradient-brand: linear-gradient(90deg, rgba(131, 58, 180, 1) 0%, rgba(217, 0, 0, 1) 50%, rgba(194, 252, 69, 1) 100%);
+  --gradient-brand: linear-gradient(90deg, rgb(158, 0, 47) 0%, rgb(189, 222, 0) 50%, rgba(0, 161, 86, 1) 100%);
 }
 
 .text-gradient-brand {

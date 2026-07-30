@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
-import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINKS = [
   { href: "#features", label: "Features" },
@@ -33,7 +32,6 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <ThemeToggle />
           <Link
             href="/login"
             className="hidden sm:inline px-3 sm:px-3.5 py-1.5 text-[13px] font-medium rounded-md transition text-gray-300 hover:text-white"
@@ -43,7 +41,7 @@ export function Navbar() {
           <Link
             href="/register"
             className="px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[13px] font-semibold text-white rounded-lg transition whitespace-nowrap bg-gradient-brand"
-            style={{ boxShadow: "0 4px 14px rgba(131,58,180,.4)" }}
+            style={{ boxShadow: "0 4px 14px rgba(0,158,55,.4)" }}
           >
             Get Started
           </Link>

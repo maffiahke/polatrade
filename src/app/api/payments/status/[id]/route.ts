@@ -29,7 +29,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
   }
 
-  // Still pending in our DB — ask Lipia Online directly for the latest status.
+  // Still pending in our DB — ask Daraja directly for the latest status.
   // Only meaningful for M-Pesa transactions that have a checkoutRequestId saved.
   if (transaction.method === "mpesa" && transaction.metadata) {
     let meta: { checkoutRequestId?: string } = {};
@@ -43,13 +43,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       try {
         const result = await checkStkStatus(meta.checkoutRequestId);
 
-        // Log the raw response so we can see exactly what Lipia sends for
-        // edge cases — this is what was missing last time something showed
-        // "success" on their dashboard but never resolved here.
-        console.log(`[withdraw-status-poll] checkoutRequestId=${meta.checkoutRequestId} raw=`, JSON.stringify(result));
+        // Log the raw response so we can debug edge cases.
+        console.log(`[payment-status-poll] checkoutRequestId=${meta.checkoutRequestId} raw=`, JSON.stringify(result));
 
-        // Lipia nests the actual payment fields under data.response (same
-        // shape as their webhook callback), not flat on data like GravityPay was.
+        // Daraja nests the actual payment fields under data.response.
         const response = result.data?.response;
 
         if (result.success && response) {
@@ -59,7 +56,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           const failureValues = ["failed", "failure", "cancelled", "canceled", "rejected", "timeout", "expired"];
 
           // IMPORTANT: do NOT treat ResultCode === 0 alone as success. Daraja
-          // (which Lipia wraps) reuses ResultCode 0 for "STK push accepted
+          // reuses ResultCode 0 for "STK push accepted
           // for processing" on the *initiation* response, separately from
           // "payment actually completed" on the *status/callback* response.
           // Trusting ResultCode alone here previously caused balances to be
@@ -127,7 +124,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }
       } catch (err) {
         console.error("checkStkStatus error:", err);
-        // Network/API error talking to Lipia — don't fail the poll request,
+        // Network/API error talking to Daraja — don't fail the poll request,
         // just report pending and let the client try again shortly.
       }
     }

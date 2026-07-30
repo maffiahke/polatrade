@@ -107,7 +107,7 @@ export function LiveChartPreview() {
                 <Link
                   href="/trade"
                   className="block w-full py-2.5 rounded-xl text-white font-semibold text-sm text-center transition-all bg-gradient-brand"
-                  style={{ boxShadow: "0 4px 14px rgba(131,58,180,.4)" }}
+                  style={{ boxShadow: "0 4px 14px rgba(0,158,55,.4)" }}
                 >
                   Start Trading
                 </Link>

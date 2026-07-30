@@ -78,7 +78,7 @@ try {
             </h1>
             <p className="text-sm text-gray-400 mb-8">
               {isLogin
-                ? "Log in to continue trading on SmartDollarFX"
+                ? "Log in to continue trading on SummitTrades"
                 : "Join over 1 million traders worldwide"}
             </p>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -150,7 +150,7 @@ try {
                 type="submit"
                 disabled={loading}
                 className="w-full py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-60 bg-gradient-brand"
-                style={{ boxShadow: "0 4px 14px rgba(131,58,180,.4)" }}
+                style={{ boxShadow: "0 4px 14px rgba(0,158,55,.4)" }}
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">

@@ -20,13 +20,84 @@ function cleanEnvVar(val: string | undefined): string {
   return clean.trim();
 }
 
-const PAYHERO_BASE_URL = process.env.PAYHERO_BASE_URL ?? "https://backend.payhero.co.ke/api/v2";
+/** Base URL for Daraja API (sandbox vs production) */
+const MPESA_API_URL =
+  process.env.MPESA_ENV === "production"
+    ? "https://api.safaricom.co.ke"
+    : "https://sandbox.safaricom.co.ke";
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function getTimestamp(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const s = String(now.getSeconds()).padStart(2, "0");
+  return `${y}${m}${d}${h}${min}${s}`;
+}
+
+function generatePassword(shortcode: string, passkey: string, timestamp: string): string {
+  return Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
+}
+
+function getDarajaConfig() {
+  const consumerKey = cleanEnvVar(process.env.MPESA_CONSUMER_KEY);
+  const consumerSecret = cleanEnvVar(process.env.MPESA_CONSUMER_SECRET);
+  const passkey = cleanEnvVar(process.env.MPESA_PASSKEY);
+  const shortcode = cleanEnvVar(process.env.MPESA_SHORTCODE);
+  const tillNumber = cleanEnvVar(process.env.MPESA_TILL_NUMBER);
+  const transactionType =
+    cleanEnvVar(process.env.MPESA_TRANSACTION_TYPE) || "CustomerPayBillOnline";
+  const callbackUrl = cleanEnvVar(process.env.MPESA_CALLBACK_URL);
+
+  if (!consumerKey || !consumerSecret || !passkey || !shortcode || !callbackUrl) {
+    throw new Error(
+      "M-Pesa Daraja not configured. Set MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, " +
+        "MPESA_PASSKEY, MPESA_SHORTCODE, and MPESA_CALLBACK_URL in .env"
+    );
+  }
+
+  if (transactionType === "CustomerBuyGoodsOnline" && !tillNumber) {
+    throw new Error(
+      "MPESA_TILL_NUMBER is required when MPESA_TRANSACTION_TYPE is CustomerBuyGoodsOnline"
+    );
+  }
+
+  return { consumerKey, consumerSecret, passkey, shortcode, tillNumber, transactionType, callbackUrl };
+}
 
 /**
- * INITIATE PAYHERO STK PUSH
+ * Obtain an OAuth access token from the Daraja API.
+ * The token is short-lived (expires in 3600 s) — we fetch one per request.
+ */
+async function getOAuthToken(consumerKey: string, consumerSecret: string): Promise<string> {
+  const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
+  const res = await axios.get(`${MPESA_API_URL}/oauth/v1/generate?grant_type=client_credentials`, {
+    headers: { Authorization: `Basic ${auth}` },
+  });
+  return res.data.access_token;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Public API                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Initiate an M-Pesa STK Push via the Daraja API.
  *
- * Per PayHero's docs: POST {PAYHERO_BASE_URL}/payments
- * Auth: Basic auth using PAYHERO_USERNAME and PAYHERO_PASSWORD
+ * Supports both **CustomerPayBillOnline** (paybill) and
+ * **CustomerBuyGoodsOnline** (buy goods – till) transaction types.
+ *
+ * Required env vars:
+ *   MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_PASSKEY,
+ *   MPESA_SHORTCODE, MPESA_CALLBACK_URL
+ *
+ * For buy-goods also set: MPESA_TILL_NUMBER, MPESA_TRANSACTION_TYPE
  */
 export async function initiateStkPush(params: {
   phone: string;
@@ -34,37 +105,38 @@ export async function initiateStkPush(params: {
   accountReference: string;
   transactionDesc: string;
 }) {
-  const username = cleanEnvVar(process.env.PAYHERO_USERNAME);
-  const password = cleanEnvVar(process.env.PAYHERO_PASSWORD);
-  const channelId = cleanEnvVar(process.env.PAYHERO_CHANNEL_ID);
+  const config = getDarajaConfig();
+  const token = await getOAuthToken(config.consumerKey, config.consumerSecret);
+  const timestamp = getTimestamp();
+  const password = generatePassword(config.shortcode, config.passkey, timestamp);
+  const formattedPhone = formatPhone(params.phone);
 
-  if (!username || !password || !channelId) {
-    throw new Error("PayHero credentials not configured");
-  }
-
-  const callbackUrl = process.env.MPESA_CALLBACK_URL;
-  if (!callbackUrl) {
-    throw new Error("MPESA_CALLBACK_URL not configured");
-  }
-
-  const externalReference = params.accountReference?.slice(0, 32) ?? "SMARTDOLLARFX";
-  const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+  // PartyB: for PayBill the shortcode itself; for BuyGoods the till number
+  const partyB =
+    config.transactionType === "CustomerBuyGoodsOnline" && config.tillNumber
+      ? config.tillNumber
+      : config.shortcode;
 
   let response;
   try {
     response = await axios.post(
-      `${PAYHERO_BASE_URL}/payments`,
+      `${MPESA_API_URL}/mpesa/stkpush/v1/processrequest`,
       {
-        amount: Math.ceil(params.amountKes),
-        phone_number: formatPhone(params.phone),
-        channel_id: parseInt(channelId),
-        provider: "m-pesa",
-        external_reference: externalReference,
-        callback_url: callbackUrl,
+        BusinessShortCode: config.shortcode,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: config.transactionType,
+        Amount: Math.round(params.amountKes),
+        PartyA: formattedPhone,
+        PartyB: partyB,
+        PhoneNumber: formattedPhone,
+        CallBackURL: config.callbackUrl,
+        AccountReference: (params.accountReference ?? "SUMMITTRADES").slice(0, 12),
+        TransactionDesc: (params.transactionDesc ?? "Deposit").slice(0, 13),
       },
       {
         headers: {
-          Authorization: authHeader,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       }
@@ -72,38 +144,41 @@ export async function initiateStkPush(params: {
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.data) {
       const data = err.response.data as {
-        error_message?: string;
+        errorMessage?: string;
+        ResponseDescription?: string;
         message?: string;
-        error?: string;
       };
-      const errMsg = data.error_message || data.message || data.error || "STK push failed";
+      const errMsg = data.errorMessage || data.ResponseDescription || data.message || "STK push failed";
       throw new Error(errMsg);
     }
     throw err;
   }
 
   const data = response.data;
-  if (!data.success) {
-    throw new Error(data.message || data.error || "STK push failed");
+
+  // ResponseCode "0" means the request was accepted for processing
+  if (data.ResponseCode !== "0") {
+    throw new Error(data.ResponseDescription || data.errorMessage || "STK push rejected by Safaricom");
   }
 
-  const checkoutRequestId = data.CheckoutRequestID || data.checkoutRequestID || data.checkout_request_id || externalReference;
-
   return {
-    transactionId: checkoutRequestId,
-    checkoutRequestId: checkoutRequestId,
-    merchantRequestId: checkoutRequestId,
+    transactionId: data.CheckoutRequestID,
+    checkoutRequestId: data.CheckoutRequestID,
+    merchantRequestId: data.MerchantRequestID,
     status: "pending",
-    CustomerMessage: data.CustomerMessage || data.message || "Request accepted for processing",
+    CustomerMessage: data.ResponseDescription || "Request accepted for processing",
   };
 }
 
-export interface PayHeroStatusResponse {
+/* ------------------------------------------------------------------ */
+/*  Status query interface & response                                  */
+/* ------------------------------------------------------------------ */
+
+export interface MpesaStatusResponse {
   success: boolean;
-  message?: string;
   data: {
     response: {
-      Status: string;
+      Status: string; // "Success" | "Failed" | "Pending"
       Amount: number;
       ExternalReference: string;
       MpesaReceiptNumber: string;
@@ -114,69 +189,103 @@ export interface PayHeroStatusResponse {
 }
 
 /**
- * CHECK STK PUSH STATUS
+ * Query the status of an STK push transaction via Daraja's query endpoint.
  *
- * Per PayHero's docs: GET {PAYHERO_BASE_URL}/transaction-status
+ * Possible ResultCode values (from the query response):
+ *   "0"   – Payment completed successfully
+ *   "1032" – Transaction cancelled by customer
+ *   "1037" – Timeout
+ *   "1"   – Insufficient balance
+ *   "2"   – Rejected by system
+ *   "2001" – Initiator info error
+ *
+ * When the query succeeds (ResponseCode "0") but no ResultCode is returned,
+ * the transaction is still pending processing.
  */
-export async function checkStkStatus(checkoutRequestId: string): Promise<PayHeroStatusResponse> {
-  const username = cleanEnvVar(process.env.PAYHERO_USERNAME);
-  const password = cleanEnvVar(process.env.PAYHERO_PASSWORD);
+export async function checkStkStatus(checkoutRequestId: string): Promise<MpesaStatusResponse> {
+  const config = getDarajaConfig();
+  const token = await getOAuthToken(config.consumerKey, config.consumerSecret);
+  const timestamp = getTimestamp();
+  const password = generatePassword(config.shortcode, config.passkey, timestamp);
 
-  if (!username || !password) {
-    throw new Error("PayHero credentials not configured");
-  }
-
-  const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
-
-  const response = await axios.get(
-    `${PAYHERO_BASE_URL}/transaction-status`,
+  const res = await axios.post(
+    `${MPESA_API_URL}/mpesa/stkpushquery/v1/query`,
     {
-      params: { reference: checkoutRequestId },
+      BusinessShortCode: config.shortcode,
+      Password: password,
+      Timestamp: timestamp,
+      CheckoutRequestID: checkoutRequestId,
+    },
+    {
       headers: {
-        Authorization: authHeader,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      validateStatus: () => true, // we want to inspect error status codes/bodies ourselves
     }
   );
 
-  const rawData = response.data;
+  const data = res.data;
 
-  // PayHero uses SUCCESS, FAILED, QUEUED status strings
-  const statusStr = (rawData.status || rawData.Status || "").toString().toUpperCase().trim();
-  const innerData = rawData.data || rawData.response || rawData;
-  const innerStatusStr = (innerData?.status || innerData?.Status || "").toString().toUpperCase().trim();
+  // ResponseCode "0" means the query itself succeeded
+  const queryOk = data.ResponseCode === "0" || data.ResponseCode === 0;
 
-  const isSuccess = statusStr === "SUCCESS" || innerStatusStr === "SUCCESS";
-  const isFailed = statusStr === "FAILED" || innerStatusStr === "FAILED";
-  const isPending = statusStr === "QUEUED" || innerStatusStr === "QUEUED";
+  if (!queryOk) {
+    return {
+      success: false,
+      data: {
+        response: {
+          Status: "Pending",
+          Amount: 0,
+          ExternalReference: checkoutRequestId,
+          MpesaReceiptNumber: "",
+          ResultDesc: data.ResponseDescription || "Query failed",
+          CheckoutRequestID: checkoutRequestId,
+        },
+      },
+    };
+  }
 
+  const resultCode = String(data.ResultCode ?? "");
+  const resultDesc = data.ResultDesc || "";
   let normalizedStatus = "Pending";
-  if (isSuccess) normalizedStatus = "Success";
-  else if (isFailed) normalizedStatus = "Failed";
+  let amount = 0;
+  let receiptNumber = "";
 
-  const amount = innerData.Amount || innerData.amount || 0;
-  const externalRef = innerData.ExternalReference || innerData.external_reference || innerData.reference || checkoutRequestId;
-  const receipt = innerData.MpesaReceiptNumber || innerData.reference || innerData.transaction_code || "";
-  const resultDesc = rawData.message || rawData.ResultDesc || rawData.result_desc || "";
+  if (resultCode === "0") {
+    normalizedStatus = "Success";
+    // Extract callback metadata if available from query response
+    if (data.CallbackMetadata?.Item) {
+      for (const item of data.CallbackMetadata.Item) {
+        if (item.Name === "Amount") amount = Number(item.Value) || 0;
+        if (item.Name === "MpesaReceiptNumber") receiptNumber = String(item.Value || "");
+      }
+    }
+  } else if (["1032", "1037", "1", "2", "17", "2001"].includes(resultCode)) {
+    normalizedStatus = "Failed";
+  }
+  // else stays "Pending" (no ResultCode yet, still processing)
 
   return {
-    success: isSuccess || isFailed || isPending,
-    message: rawData.message,
+    success: normalizedStatus !== "Failed",
     data: {
       response: {
         Status: normalizedStatus,
         Amount: amount,
-        ExternalReference: externalRef,
-        MpesaReceiptNumber: receipt,
+        ExternalReference: checkoutRequestId,
+        MpesaReceiptNumber: receiptNumber,
         ResultDesc: resultDesc,
         CheckoutRequestID: checkoutRequestId,
-      }
-    }
+      },
+    },
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
 /**
- * USD → KES conversion
+ * Convert USD to KES using the configured rate.
  */
 export function usdToKes(usd: number): number {
   const rate = parseFloat(process.env.USD_TO_KES ?? "130");
@@ -184,11 +293,13 @@ export function usdToKes(usd: number): number {
 }
 
 /**
- * Check if PayHero M-Pesa is configured
+ * Check whether the Daraja M-Pesa credentials are present in the environment.
  */
 export function isMpesaConfigured(): boolean {
-  const username = cleanEnvVar(process.env.PAYHERO_USERNAME);
-  const password = cleanEnvVar(process.env.PAYHERO_PASSWORD);
-  const channelId = cleanEnvVar(process.env.PAYHERO_CHANNEL_ID);
-  return !!(username && password && channelId);
+  const key = cleanEnvVar(process.env.MPESA_CONSUMER_KEY);
+  const secret = cleanEnvVar(process.env.MPESA_CONSUMER_SECRET);
+  const passkey = cleanEnvVar(process.env.MPESA_PASSKEY);
+  const shortcode = cleanEnvVar(process.env.MPESA_SHORTCODE);
+  const callbackUrl = cleanEnvVar(process.env.MPESA_CALLBACK_URL);
+  return !!(key && secret && passkey && shortcode && callbackUrl);
 }

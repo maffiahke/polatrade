@@ -1,4 +1,4 @@
-# SmartDollarFX
+# SummitTrades
 
 A binary options trading platform built with Next.js, Prisma, and Neon Postgres.
 
@@ -7,7 +7,7 @@ A binary options trading platform built with Next.js, Prisma, and Neon Postgres.
 - **Landing page** — Marketing site with live ticker and chart preview
 - **User authentication** — Register, login, JWT sessions via NextAuth
 - **Trading platform** — Real trades stored in database when logged in; demo mode available
-- **Payments** — M-Pesa STK Push via PayHero, USDT TRC20 crypto deposits
+- **Payments** — M-Pesa STK Push via Safaricom Daraja API, USDT TRC20 crypto deposits
 - **Admin panel** — User management, payment config, dashboard stats
 
 ## Quick Start
@@ -25,7 +25,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 ### Default admin login
-- **Email:** admin@smartdollarfx.com
+- **Email:** admin@summittrades.com
 - **Password:** Admin@123
 
 ## Pages
@@ -46,8 +46,8 @@ Open [http://localhost:3000](http://localhost:3000).
 2. **Environment Variables** — In Vercel dashboard, set all variables from `.env.example`:
    - `DATABASE_URL` — Neon connection string
    - `AUTH_SECRET` — Run `openssl rand -base64 32`
-   - `NEXTAUTH_URL` — Your production URL (e.g. `https://smartdollarfx.vercel.app`)
-   - PayHero & crypto settings
+   - `NEXTAUTH_URL` — Your production URL (e.g. `https://summittrades.vercel.app`)
+   - Daraja (Safaricom M-Pesa) & crypto settings
 3. **Push schema** — Run `npx prisma db push` locally against the Neon URL, or let Vercel's build command handle it
 4. **Seed admin** — `npx tsx prisma/seed.ts` against the production DB
 5. **Deploy** — Connect your GitHub repo to Vercel and deploy
@@ -62,5 +62,5 @@ Copy `.env.example` to `.env` and fill in your values.
 - NextAuth v5 (credentials)
 - Prisma + PostgreSQL (Neon)
 - Tailwind CSS 4
-- M-Pesa PayHero API
+- M-Pesa Daraja API (Safaricom)
 - Zod validation

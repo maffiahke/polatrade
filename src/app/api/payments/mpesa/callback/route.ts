@@ -2,137 +2,160 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkStkStatus } from "@/lib/mpesa";
 
-// PayHero's webhook does not require signature checks by default, but we support
-// the verifySignature placeholder for future improvements.
-function verifySignature(_req: Request, _rawBody: string): boolean {
-  return true;
+/* ------------------------------------------------------------------ */
+/*  Safaricom Daraja callback body types                               */
+/* ------------------------------------------------------------------ */
+
+interface DarajaCallbackItem {
+  Name: string;
+  Value: string | number;
 }
 
-interface PayHeroCallbackBody {
-  Status?: string;
-  status?: string;
-  ResultCode?: number;
-  ExternalReference?: string;
-  external_reference?: string;
-  MerchantRequestID?: string;
-  CheckoutRequestID?: string;
-  checkoutRequestID?: string;
-  checkout_request_id?: string;
-  MpesaReceiptNumber?: string;
-  Reference?: string;
-  reference?: string;
-  transaction_code?: string;
-  ResultDesc?: string;
-  result_desc?: string;
-  message?: string;
-  response?: PayHeroCallbackBody;
+interface DarajaStkCallback {
+  MerchantRequestID: string;
+  CheckoutRequestID: string;
+  ResultCode: number;
+  ResultDesc: string;
+  CallbackMetadata?: {
+    Item: DarajaCallbackItem[];
+  };
 }
+
+interface DarajaCallbackBody {
+  Body: {
+    stkCallback: DarajaStkCallback;
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Webhook handler                                                    */
+/* ------------------------------------------------------------------ */
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
 
-  if (!verifySignature(req, rawBody)) {
-    console.warn("PayHero webhook: signature verification failed");
-    return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
-  }
-
-  let body: PayHeroCallbackBody;
+  let body: DarajaCallbackBody;
   try {
     body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Handle both nested inside 'response' and flat properties
-  const data = body.response || body;
-  const reference = data.ExternalReference || data.external_reference || data.MerchantRequestID || data.reference;
-
-  if (!reference) {
-    return NextResponse.json({ error: "Missing reference" }, { status: 400 });
+  const callback = body.Body?.stkCallback;
+  if (!callback) {
+    console.warn("Daraja callback: missing Body.stkCallback", rawBody.slice(0, 500));
+    return NextResponse.json({ error: "Invalid callback structure" }, { status: 400 });
   }
 
-  // Find the pending transaction we created when initiating the STK push.
-  const transaction = await prisma.transaction.findFirst({
-    where: { externalRef: reference, status: "pending" },
+  const { CheckoutRequestID, MerchantRequestID, ResultCode, ResultDesc, CallbackMetadata } = callback;
+
+  // ResultCode 0 means the payment was successful at Safaricom's side.
+  // Any other ResultCode is a terminal failure for this attempt.
+
+  // Find the pending transaction using the CheckoutRequestID which we stored
+  // in the transaction metadata during initiateStkPush.
+  const allPending = await prisma.transaction.findMany({
+    where: { method: "mpesa", status: "pending" },
+    select: { id: true, metadata: true, externalRef: true, amount: true, userId: true },
   });
 
-  if (!transaction) {
-    console.warn(`PayHero webhook: no pending transaction found for reference ${reference}`);
-    return NextResponse.json({ ok: true, note: "No matching pending transaction" });
+  const match = allPending.find((t) => {
+    if (!t.metadata) return false;
+    try {
+      const meta = JSON.parse(t.metadata);
+      return meta.checkoutRequestId === CheckoutRequestID;
+    } catch {
+      return false;
+    }
+  });
+
+  if (!match) {
+    console.warn(
+      `Daraja callback: no pending mpesa transaction found for CheckoutRequestID ${CheckoutRequestID}`
+    );
+    // Acknowledge receipt so Safaricom doesn't retry
+    return NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
   }
 
-  const existingMeta = transaction.metadata ? JSON.parse(transaction.metadata) : {};
+  const existingMeta = match.metadata ? JSON.parse(match.metadata) : {};
 
-  const statusStr = (data.Status || data.status || "").toUpperCase().trim();
-  const resultCode = data.ResultCode !== undefined ? Number(data.ResultCode) : null;
-  const isSuccess = statusStr === "SUCCESS" || statusStr === "SUCCESSFUL" || (resultCode === 0 && statusStr !== "FAILED");
-  const isPending = statusStr === "QUEUED" || statusStr === "PENDING";
+  if (ResultCode === 0 && CallbackMetadata?.Item) {
+    // Extract values from the callback metadata
+    const metaMap = new Map<string, string | number>();
+    for (const item of CallbackMetadata.Item) {
+      metaMap.set(item.Name, item.Value);
+    }
 
-  if (isPending) {
-    console.log(`PayHero webhook: transaction ${reference} is queued/pending.`);
-    return NextResponse.json({ ok: true, note: "Transaction is pending/queued" });
-  }
+    const mpesaReceipt = String(metaMap.get("MpesaReceiptNumber") || "");
+    const paidAmount = Number(metaMap.get("Amount") || 0);
 
-  const checkoutRequestId = data.CheckoutRequestID || data.checkoutRequestID || data.checkout_request_id || existingMeta.checkoutRequestId || reference;
-  const mpesaReceipt = data.MpesaReceiptNumber || data.Reference || data.reference || data.transaction_code || "";
-
-  if (isSuccess) {
-    // Corroborate with PayHero's status API as a safety check (not a hard gate)
+    // Corroborate with Daraja's query API as a safety check
     let corroborated = false;
     try {
-      const statusResult = await checkStkStatus(checkoutRequestId);
-      console.log(`[mpesa-callback] corroboration raw response for ${checkoutRequestId}=`, JSON.stringify(statusResult));
-      const remoteStatus = statusResult.data?.response?.Status?.toLowerCase().trim();
-      corroborated = remoteStatus === "success";
+      const statusResult = await checkStkStatus(CheckoutRequestID);
+      console.log(
+        `[mpesa-callback] corroboration for ${CheckoutRequestID}:`,
+        JSON.stringify(statusResult)
+      );
+      corroborated = statusResult.data?.response?.Status === "Success";
     } catch (err) {
-      console.error(`PayHero webhook: corroboration check failed for ${checkoutRequestId}`, err);
+      console.error(`Daraja callback: corroboration query failed for ${CheckoutRequestID}`, err);
     }
 
     if (!corroborated) {
       console.warn(
-        `PayHero webhook: uncorroborated success for reference ${reference} ` +
-        `(checkoutRequestId=${checkoutRequestId}) — proceeding anyway because ` +
-        `the callback payload itself indicates success.`
+        `Daraja callback: uncorroborated success for CheckoutRequestID=${CheckoutRequestID} ` +
+          "— proceeding because the callback payload itself indicates success."
       );
     }
 
     await prisma.$transaction([
       prisma.transaction.update({
-        where: { id: transaction.id },
+        where: { id: match.id },
         data: {
           status: "completed",
+          externalRef: mpesaReceipt || match.externalRef,
           metadata: JSON.stringify({
             ...existingMeta,
-            mpesaReceipt: mpesaReceipt || existingMeta.mpesaReceipt,
-            checkoutRequestId: checkoutRequestId,
+            mpesaReceipt,
+            paidAmount,
+            checkoutRequestId: CheckoutRequestID,
+            merchantRequestId: MerchantRequestID,
             resolvedVia: corroborated ? "webhook-corroborated" : "webhook-uncorroborated",
+            callbackResultDesc: ResultDesc,
           }),
         },
       }),
       prisma.user.update({
-        where: { id: transaction.userId },
-        data: { balance: { increment: transaction.amount } },
+        where: { id: match.userId },
+        data: { balance: { increment: match.amount } },
       }),
     ]);
 
-    console.log(`Deposit completed: ${reference} (+$${transaction.amount} for user ${transaction.userId})`);
-    return NextResponse.json({ ok: true });
+    console.log(
+      `Deposit completed: ${match.externalRef || CheckoutRequestID} ` +
+        `(+$${match.amount} for user ${match.userId})`
+    );
+    return NextResponse.json({ ResultCode: 0, ResultDesc: "Success" });
   }
 
-  // Transaction failed
-  const failureReason = data.ResultDesc || data.result_desc || data.message || statusStr || "Payment failed";
+  // Transaction failed at Safaricom
+  const failureReason = ResultDesc || "Payment failed";
 
   await prisma.transaction.update({
-    where: { id: transaction.id },
+    where: { id: match.id },
     data: {
       status: "failed",
       metadata: JSON.stringify({
         ...existingMeta,
         failureReason,
+        checkoutRequestId: CheckoutRequestID,
+        merchantRequestId: MerchantRequestID,
+        resultCode: ResultCode,
       }),
     },
   });
 
-  console.log(`Deposit failed: ${reference} (${failureReason})`);
-  return NextResponse.json({ ok: true });
+  console.log(`Deposit failed: ${CheckoutRequestID} (${failureReason})`);
+  return NextResponse.json({ ResultCode: 0, ResultDesc: "Success" });
 }

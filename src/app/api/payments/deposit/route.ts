@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     if (method === "mpesa") {
       if (!isMpesaConfigured()) {
         return NextResponse.json(
-          { error: "M-Pesa not configured. Add PAYHERO_USERNAME, PAYHERO_PASSWORD, and PAYHERO_CHANNEL_ID to .env" },
+          { error: "M-Pesa not configured. Add MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_PASSKEY, and MPESA_SHORTCODE to .env" },
           { status: 503 }
         );
       }
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
           phone: mpesaPhone,
           amountKes,
           accountReference: reference,
-          transactionDesc: "SmartDollarFX deposit",
+          transactionDesc: "SummitTrades deposit",
         });
 
         await prisma.transaction.update({

@@ -438,7 +438,7 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
               onClick={handleDeposit}
               disabled={loading || amount < MIN_DEPOSIT}
               className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-40"
-              style={{ background: "linear-gradient(90deg, rgba(131,58,180,1) 0%, rgba(217,0,0,1) 50%, rgba(194,252,69,1) 100%)" }}
+              style={{ background: "linear-gradient(90deg, rgb(158, 0, 53) 0%, rgb(181, 222, 0) 50%, rgba(0,161,86,1) 100%)" }}
             >
               {loading ? "Processing..." : `Deposit $${amount}`}
             </button>

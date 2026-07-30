@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SmartDollarFX - Binary Trading Platform",
+  title: "SummitTrades - Binary Trading Platform",
   description: "Trade binary options on synthetic indices",
 };
 

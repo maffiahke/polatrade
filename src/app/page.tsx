@@ -7,7 +7,7 @@ import { Steps } from "@/components/landing/Steps";
 import { Stats } from "@/components/landing/Stats";
 import { Reviews } from "@/components/landing/Reviews";
 import { Cta } from "@/components/landing/Cta";
-import { AppDownload } from "@/components/landing/AppDownload";
+
 import { Footer } from "@/components/Footer";
 
 export default function Home() {
@@ -22,7 +22,7 @@ export default function Home() {
       <Stats />
       <Reviews />
       <Cta />
-      <AppDownload />
+
       <Footer />
     </div>
   );
