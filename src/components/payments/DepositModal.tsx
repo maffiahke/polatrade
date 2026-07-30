@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Smartphone, Bitcoin, Copy, Check } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Smartphone, Bitcoin, Copy, Check, Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react";
 
 type Tab = "mpesa" | "crypto";
+type DepositState = "form" | "waiting" | "success" | "error";
 
 interface DepositModalProps {
   open: boolean;
@@ -28,13 +29,24 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
   const [txHash, setTxHash] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [cryptoResult, setCryptoResult] = useState<CryptoResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [kesRate, setKesRate] = useState<number | null>(null);
   const [limits, setLimits] = useState({ minDeposit: 5, maxDeposit: 10000 });
+  const [depositState, setDepositState] = useState<DepositState>("form");
+  const [depositAmount, setDepositAmount] = useState(0);
+  const [newBalance, setNewBalance] = useState<number | null>(null);
+  const [statusText, setStatusText] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const MIN_DEPOSIT = limits.minDeposit;
+
+  // Clean up poll on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   // Fetch USD → KES conversion rate and deposit limits
   useEffect(() => {
@@ -54,42 +66,46 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
 
   const reset = () => {
     setError("");
-    setMessage("");
     setCryptoResult(null);
     setTxHash("");
+    setDepositState("form");
+    setNewBalance(null);
+    setStatusText("");
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
   };
 
   const pollDepositStatus = (transactionId: string) => {
-    let attempts = 0;
-    const maxAttempts = 20; // ~60 seconds at 3s intervals
+    if (pollRef.current) clearInterval(pollRef.current);
 
-    const interval = setInterval(async () => {
-      attempts++;
+    pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/payments/status/${transactionId}`);
         const data = await res.json();
 
         if (data.status === "completed") {
-          clearInterval(interval);
-          setMessage(`Deposit of $${data.amount} confirmed!`);
-          setError("");
-          if (data.balance !== undefined) onSuccess(data.balance);
+          if (pollRef.current) clearInterval(pollRef.current);
+          setNewBalance(data.balance ?? null);
+          setDepositState("success");
+          setStatusText("");
           return;
         }
 
         if (data.status === "failed") {
-          clearInterval(interval);
+          if (pollRef.current) clearInterval(pollRef.current);
           setError("Payment failed or was cancelled. Please try again.");
-          setMessage("");
+          setStatusText("");
+          setDepositState("error");
           return;
         }
-      } catch {
-        // network hiccup — keep polling, don't surface an error for a transient miss
-      }
 
-      if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        setMessage("Still waiting for confirmation. Check back in a moment, or refresh.");
+        // Still pending — update status text with a simple animation
+        const dots = ".".repeat((Math.floor(Date.now() / 1500) % 3) + 1);
+        setStatusText(`Waiting for confirmation${dots}`);
+      } catch {
+        // network hiccup — keep polling
       }
     }, 3000);
   };
@@ -97,7 +113,9 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
   const handleDeposit = async () => {
     setLoading(true);
     setError("");
-    setMessage("");
+    setDepositAmount(amount);
+    setDepositState("waiting");
+    setStatusText("Sending payment request...");
     try {
       const res = await fetch("/api/payments/deposit", {
         method: "POST",
@@ -111,28 +129,37 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
       const data = await res.json();
       if (!res.ok) {
         const raw = data.error ?? data.message ?? data;
-        throw new Error(
-          typeof raw === "string" ? raw : JSON.stringify(raw)
-        );
+        throw new Error(typeof raw === "string" ? raw : JSON.stringify(raw));
       }
 
       if (tab === "mpesa") {
-        setMessage(data.message ?? "Check your phone for the M-Pesa prompt");
+        setStatusText("Check your phone for the M-Pesa prompt and enter your PIN");
         if (data.transactionId) {
           pollDepositStatus(data.transactionId);
         }
       } else {
         setCryptoResult(data);
         if (data.status === "completed" && data.balance != null) {
-          onSuccess(data.balance);
-          setMessage(data.message);
+          setNewBalance(data.balance);
+          setDepositState("success");
+        } else {
+          // Crypto — show the address, user is still on the "form"
+          setDepositState("form");
         }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Deposit failed");
+      setStatusText("");
+      setDepositState("error");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuccessDone = () => {
+    if (newBalance !== null) onSuccess(newBalance);
+    reset();
+    onClose();
   };
 
   const confirmCrypto = async () => {
@@ -150,8 +177,8 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Confirmation failed");
-      onSuccess(data.balance);
-      setMessage(data.message);
+      setNewBalance(data.balance);
+      setDepositState("success");
       setCryptoResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Confirmation failed");
@@ -171,6 +198,126 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
     { id: "crypto", label: "USDT", icon: Bitcoin },
   ];
 
+  // ── Waiting Modal Overlay ──
+  if (depositState === "waiting") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm bg-[#1c2030] border border-white/[0.07] rounded-3xl overflow-hidden shadow-2xl text-center">
+          <div className="px-6 pt-10 pb-8 space-y-5">
+            <div className="w-20 h-20 mx-auto relative">
+              <div className="absolute inset-0 rounded-full border-[3px] border-[#833ab4]/20" />
+              <div className="absolute inset-0 rounded-full border-[3px] border-t-[#833ab4] border-r-[#d90000] border-b-transparent border-l-transparent animate-spin" />
+              <div className="absolute inset-2 rounded-full bg-[#833ab4]/10 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-[#833ab4] animate-pulse" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Processing Payment</h3>
+              <p className="text-3xl font-extrabold mt-2 text-gradient-brand">
+                ${depositAmount.toFixed(2)}
+              </p>
+              {kesRate && (
+                <p className="text-sm text-gray-500 mt-1 tabular-nums">
+                  ≈ KES {(depositAmount * kesRate).toLocaleString("en-US")}
+                </p>
+              )}
+            </div>
+            <div className="bg-[#13161e] rounded-xl px-4 py-3">
+              <p className="text-sm text-gray-300">{statusText}</p>
+            </div>
+            <p className="text-xs text-gray-500">
+              Please complete the payment on your phone. Do not close this screen.
+            </p>
+            <button
+              onClick={() => { if (pollRef.current) clearInterval(pollRef.current); reset(); }}
+              className="text-sm text-gray-400 hover:text-white underline underline-offset-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Success Modal Overlay ──
+  if (depositState === "success") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm bg-[#1c2030] border border-white/[0.07] rounded-3xl overflow-hidden shadow-2xl text-center">
+          <div className="bg-emerald-500/10 px-6 pt-10 pb-7">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/15 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-emerald-400">Deposit Successful!</h3>
+            <p className="text-4xl font-extrabold text-white mt-3 tabular-nums">
+              ${depositAmount.toFixed(2)}
+            </p>
+            {kesRate && (
+              <p className="text-sm text-gray-400 mt-1 tabular-nums">
+                ≈ KES {(depositAmount * kesRate).toLocaleString("en-US")}
+              </p>
+            )}
+          </div>
+          <div className="px-5 py-5 space-y-4">
+            {newBalance !== null && (
+              <div className="flex items-center justify-between bg-white/[0.03] rounded-xl px-4 py-3.5">
+                <span className="text-sm text-gray-400">New Balance</span>
+                <span className="text-lg font-bold text-white tabular-nums">
+                  ${newBalance.toFixed(2)}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={handleSuccessDone}
+              className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm transition flex items-center justify-center gap-2"
+            >
+              Done <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Error Modal Overlay ──
+  if (depositState === "error") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm bg-[#1c2030] border border-white/[0.07] rounded-3xl overflow-hidden shadow-2xl text-center">
+          <div className="px-6 pt-10 pb-7">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-rose-500/15 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-rose-500/20 flex items-center justify-center">
+                <XCircle className="w-10 h-10 text-rose-400" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-rose-400">Deposit Failed</h3>
+            <p className="text-sm text-gray-300 mt-3 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
+              {error || "Something went wrong. Please try again."}
+            </p>
+          </div>
+          <div className="px-5 pb-5 flex gap-3">
+            <button
+              onClick={() => reset()}
+              className="flex-1 h-12 rounded-xl bg-[#833ab4] hover:bg-[#6d2d9e] text-white font-bold text-sm transition"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => { reset(); onClose(); }}
+              className="flex-1 h-12 rounded-xl border border-white/[0.1] hover:bg-white/5 text-gray-300 font-bold text-sm transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Deposit Form (default state) ──
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm safe-x">
       <div className="w-full sm:max-w-md max-h-[92dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl border border-white/[0.07] bg-[#1c2030] shadow-2xl safe-bottom">
@@ -285,9 +432,6 @@ export function DepositModal({ open, onClose, onSuccess, userPhone }: DepositMod
               </button>
             </div>
           )}
-
-          {error && <p className="text-xs text-rose-400">{error}</p>}
-          {message && <p className="text-xs text-emerald-400">{message}</p>}
 
           {!cryptoResult && (
             <button

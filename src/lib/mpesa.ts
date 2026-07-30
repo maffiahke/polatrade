@@ -142,12 +142,13 @@ export async function checkStkStatus(checkoutRequestId: string): Promise<PayHero
   const rawData = response.data;
 
   // PayHero uses SUCCESS, FAILED, QUEUED status strings
-  const statusStr = (rawData.status || rawData.Status || "").toUpperCase().trim();
+  const statusStr = (rawData.status || rawData.Status || "").toString().toUpperCase().trim();
   const innerData = rawData.data || rawData.response || rawData;
+  const innerStatusStr = (innerData?.status || innerData?.Status || "").toString().toUpperCase().trim();
 
-  const isSuccess = statusStr === "SUCCESS" || innerData.status === "SUCCESS" || innerData.Status === "SUCCESS";
-  const isFailed = statusStr === "FAILED" || innerData.status === "FAILED" || innerData.Status === "FAILED";
-  const isPending = statusStr === "QUEUED" || innerData.status === "QUEUED" || innerData.Status === "QUEUED";
+  const isSuccess = statusStr === "SUCCESS" || innerStatusStr === "SUCCESS";
+  const isFailed = statusStr === "FAILED" || innerStatusStr === "FAILED";
+  const isPending = statusStr === "QUEUED" || innerStatusStr === "QUEUED";
 
   let normalizedStatus = "Pending";
   if (isSuccess) normalizedStatus = "Success";

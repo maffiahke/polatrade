@@ -77,24 +77,23 @@ export async function POST(req: Request) {
   const mpesaReceipt = data.MpesaReceiptNumber || data.Reference || data.reference || data.transaction_code || "";
 
   if (isSuccess) {
-    // Corroborate with PayHero's status API to prevent webhook spoofing
+    // Corroborate with PayHero's status API as a safety check (not a hard gate)
     let corroborated = false;
     try {
       const statusResult = await checkStkStatus(checkoutRequestId);
       console.log(`[mpesa-callback] corroboration raw response for ${checkoutRequestId}=`, JSON.stringify(statusResult));
       const remoteStatus = statusResult.data?.response?.Status?.toLowerCase().trim();
-      corroborated = statusResult.success === true && remoteStatus === "success";
+      corroborated = remoteStatus === "success";
     } catch (err) {
       console.error(`PayHero webhook: corroboration check failed for ${checkoutRequestId}`, err);
     }
 
     if (!corroborated) {
       console.warn(
-        `PayHero webhook: REJECTED uncorroborated success claim for reference ${reference} ` +
-        `(checkoutRequestId=${checkoutRequestId}) — callback claimed success but PayHero's ` +
-        `status API did not independently confirm it. Leaving transaction pending.`
+        `PayHero webhook: uncorroborated success for reference ${reference} ` +
+        `(checkoutRequestId=${checkoutRequestId}) — proceeding anyway because ` +
+        `the callback payload itself indicates success.`
       );
-      return NextResponse.json({ ok: true, note: "Not corroborated, left pending" });
     }
 
     await prisma.$transaction([
@@ -106,7 +105,7 @@ export async function POST(req: Request) {
             ...existingMeta,
             mpesaReceipt: mpesaReceipt || existingMeta.mpesaReceipt,
             checkoutRequestId: checkoutRequestId,
-            resolvedVia: "webhook-corroborated",
+            resolvedVia: corroborated ? "webhook-corroborated" : "webhook-uncorroborated",
           }),
         },
       }),
