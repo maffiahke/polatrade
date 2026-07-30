@@ -23,6 +23,11 @@ async function loadLimits() {
   };
 }
 
+export async function GET() {
+  const limits = await loadLimits();
+  return NextResponse.json({ minDeposit: limits.minDeposit, maxDeposit: limits.maxDeposit });
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
