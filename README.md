@@ -47,6 +47,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `DATABASE_URL` — Neon connection string
    - `AUTH_SECRET` — Run `openssl rand -base64 32`
    - `NEXTAUTH_URL` — Your production URL (e.g. `https://summittrades.vercel.app`)
+   - `MPESA_CALLBACK_URL` — e.g. `https://summittrades.vercel.app/api/payments/mpesa/callback`
    - Daraja (Safaricom M-Pesa) & crypto settings
 3. **Push schema** — Run `npx prisma db push` locally against the Neon URL, or let Vercel's build command handle it
 4. **Seed admin** — `npx tsx prisma/seed.ts` against the production DB
