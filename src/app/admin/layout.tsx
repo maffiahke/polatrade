@@ -71,7 +71,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center text-sm font-extrabold">S</div>
             <div>
               <div className="text-sm font-extrabold leading-tight">
-                <span className="text-gradient-brand">SUMMIT</span><span className="text-white">TRADES</span>
+                <span className="text-gradient-brand">SUMMI</span><span className="text-white">TRADES</span>
               </div>
               <div className="text-[9px] text-gray-500 uppercase tracking-wider">Admin</div>
             </div>
