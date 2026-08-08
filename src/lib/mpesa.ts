@@ -1,4 +1,5 @@
 import axios from "axios";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Format Kenyan phone number to 2547XXXXXXXX
@@ -11,7 +12,7 @@ function formatPhone(phone: string): string {
   return digits;
 }
 
-function cleanEnvVar(val: string | undefined): string {
+function cleanStr(val: string | undefined | null): string {
   if (!val) return "";
   let clean = val.trim();
   if ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
@@ -20,11 +21,60 @@ function cleanEnvVar(val: string | undefined): string {
   return clean.trim();
 }
 
+export interface DarajaCredentials {
+  consumerKey: string;
+  consumerSecret: string;
+  passkey: string;
+  shortcode: string;
+  tillNumber: string;
+  transactionType: string;
+  callbackUrl: string;
+  mpesaEnv: string;
+}
+
+let cachedConfig: DarajaCredentials | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 60_000;
+
+async function loadDarajaConfigFromDb(): Promise<DarajaCredentials | null> {
+  try {
+    const method = await prisma.paymentMethod.findUnique({ where: { name: "mpesa" } });
+    if (!method?.config) return null;
+    const cfg = JSON.parse(method.config);
+    return {
+      consumerKey: cleanStr(cfg.consumerKey),
+      consumerSecret: cleanStr(cfg.consumerSecret),
+      passkey: cleanStr(cfg.passkey),
+      shortcode: cleanStr(cfg.shortcode),
+      tillNumber: cleanStr(cfg.tillNumber),
+      transactionType: cleanStr(cfg.transactionType) || "CustomerPayBillOnline",
+      callbackUrl: cleanStr(cfg.callbackUrl),
+      mpesaEnv: cleanStr(cfg.mpesaEnv) || "sandbox",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getEnvFallback(): DarajaCredentials {
+  return {
+    consumerKey: cleanStr(process.env.MPESA_CONSUMER_KEY),
+    consumerSecret: cleanStr(process.env.MPESA_CONSUMER_SECRET),
+    passkey: cleanStr(process.env.MPESA_PASSKEY),
+    shortcode: cleanStr(process.env.MPESA_SHORTCODE),
+    tillNumber: cleanStr(process.env.MPESA_TILL_NUMBER),
+    transactionType: cleanStr(process.env.MPESA_TRANSACTION_TYPE) || "CustomerPayBillOnline",
+    callbackUrl: cleanStr(process.env.MPESA_CALLBACK_URL),
+    mpesaEnv: cleanStr(process.env.MPESA_ENV) || "sandbox",
+  };
+}
+
 /** Base URL for Daraja API (sandbox vs production) */
-const MPESA_API_URL =
-  process.env.MPESA_ENV === "production"
+function getApiUrl(env: string): string {
+  return env === "production"
     ? "https://api.safaricom.co.ke"
     : "https://sandbox.safaricom.co.ke";
+}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -45,39 +95,38 @@ function generatePassword(shortcode: string, passkey: string, timestamp: string)
   return Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
 }
 
-function getDarajaConfig() {
-  const consumerKey = cleanEnvVar(process.env.MPESA_CONSUMER_KEY);
-  const consumerSecret = cleanEnvVar(process.env.MPESA_CONSUMER_SECRET);
-  const passkey = cleanEnvVar(process.env.MPESA_PASSKEY);
-  const shortcode = cleanEnvVar(process.env.MPESA_SHORTCODE);
-  const tillNumber = cleanEnvVar(process.env.MPESA_TILL_NUMBER);
-  const transactionType =
-    cleanEnvVar(process.env.MPESA_TRANSACTION_TYPE) || "CustomerPayBillOnline";
-  const callbackUrl = cleanEnvVar(process.env.MPESA_CALLBACK_URL);
+async function getDarajaConfig(): Promise<DarajaCredentials & { apiUrl: string }> {
+  const now = Date.now();
+  if (!cachedConfig || now - cacheTimestamp > CACHE_TTL_MS) {
+    const dbConfig = await loadDarajaConfigFromDb();
+    cachedConfig = dbConfig ?? getEnvFallback();
+    cacheTimestamp = now;
+  }
 
-  if (!consumerKey || !consumerSecret || !passkey || !shortcode || !callbackUrl) {
+  const cfg = cachedConfig;
+
+  if (!cfg.consumerKey || !cfg.consumerSecret || !cfg.passkey || !cfg.shortcode || !cfg.callbackUrl) {
     throw new Error(
-      "M-Pesa Daraja not configured. Set MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, " +
-        "MPESA_PASSKEY, MPESA_SHORTCODE, and MPESA_CALLBACK_URL in .env"
+      "M-Pesa Daraja not configured. Add credentials in Admin > Payments > M-Pesa > Configure"
     );
   }
 
-  if (transactionType === "CustomerBuyGoodsOnline" && !tillNumber) {
+  if (cfg.transactionType === "CustomerBuyGoodsOnline" && !cfg.tillNumber) {
     throw new Error(
-      "MPESA_TILL_NUMBER is required when MPESA_TRANSACTION_TYPE is CustomerBuyGoodsOnline"
+      "Till Number is required when Transaction Type is CustomerBuyGoodsOnline"
     );
   }
 
-  return { consumerKey, consumerSecret, passkey, shortcode, tillNumber, transactionType, callbackUrl };
+  return { ...cfg, apiUrl: getApiUrl(cfg.mpesaEnv) };
 }
 
 /**
  * Obtain an OAuth access token from the Daraja API.
  * The token is short-lived (expires in 3600 s) — we fetch one per request.
  */
-async function getOAuthToken(consumerKey: string, consumerSecret: string): Promise<string> {
+async function getOAuthToken(consumerKey: string, consumerSecret: string, apiUrl: string): Promise<string> {
   const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
-  const res = await axios.get(`${MPESA_API_URL}/oauth/v1/generate?grant_type=client_credentials`, {
+  const res = await axios.get(`${apiUrl}/oauth/v1/generate?grant_type=client_credentials`, {
     headers: { Authorization: `Basic ${auth}` },
   });
   return res.data.access_token;
@@ -105,13 +154,12 @@ export async function initiateStkPush(params: {
   accountReference: string;
   transactionDesc: string;
 }) {
-  const config = getDarajaConfig();
-  const token = await getOAuthToken(config.consumerKey, config.consumerSecret);
+  const config = await getDarajaConfig();
+  const token = await getOAuthToken(config.consumerKey, config.consumerSecret, config.apiUrl);
   const timestamp = getTimestamp();
   const password = generatePassword(config.shortcode, config.passkey, timestamp);
   const formattedPhone = formatPhone(params.phone);
 
-  // PartyB: for PayBill the shortcode itself; for BuyGoods the till number
   const partyB =
     config.transactionType === "CustomerBuyGoodsOnline" && config.tillNumber
       ? config.tillNumber
@@ -120,7 +168,7 @@ export async function initiateStkPush(params: {
   let response;
   try {
     response = await axios.post(
-      `${MPESA_API_URL}/mpesa/stkpush/v1/processrequest`,
+      `${config.apiUrl}/mpesa/stkpush/v1/processrequest`,
       {
         BusinessShortCode: config.shortcode,
         Password: password,
@@ -156,7 +204,6 @@ export async function initiateStkPush(params: {
 
   const data = response.data;
 
-  // ResponseCode "0" means the request was accepted for processing
   if (data.ResponseCode !== "0") {
     throw new Error(data.ResponseDescription || data.errorMessage || "STK push rejected by Safaricom");
   }
@@ -203,13 +250,13 @@ export interface MpesaStatusResponse {
  * the transaction is still pending processing.
  */
 export async function checkStkStatus(checkoutRequestId: string): Promise<MpesaStatusResponse> {
-  const config = getDarajaConfig();
-  const token = await getOAuthToken(config.consumerKey, config.consumerSecret);
+  const config = await getDarajaConfig();
+  const token = await getOAuthToken(config.consumerKey, config.consumerSecret, config.apiUrl);
   const timestamp = getTimestamp();
   const password = generatePassword(config.shortcode, config.passkey, timestamp);
 
   const res = await axios.post(
-    `${MPESA_API_URL}/mpesa/stkpushquery/v1/query`,
+    `${config.apiUrl}/mpesa/stkpushquery/v1/query`,
     {
       BusinessShortCode: config.shortcode,
       Password: password,
@@ -293,13 +340,22 @@ export function usdToKes(usd: number): number {
 }
 
 /**
- * Check whether the Daraja M-Pesa credentials are present in the environment.
+ * Check whether the Daraja M-Pesa credentials are configured (DB or env).
  */
-export function isMpesaConfigured(): boolean {
-  const key = cleanEnvVar(process.env.MPESA_CONSUMER_KEY);
-  const secret = cleanEnvVar(process.env.MPESA_CONSUMER_SECRET);
-  const passkey = cleanEnvVar(process.env.MPESA_PASSKEY);
-  const shortcode = cleanEnvVar(process.env.MPESA_SHORTCODE);
-  const callbackUrl = cleanEnvVar(process.env.MPESA_CALLBACK_URL);
-  return !!(key && secret && passkey && shortcode && callbackUrl);
+export async function isMpesaConfigured(): Promise<boolean> {
+  try {
+    const config = await getDarajaConfig();
+    return !!(config.consumerKey && config.consumerSecret && config.passkey && config.shortcode && config.callbackUrl);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Force-reload Daraja config from the database on next request.
+ * Call this after admin updates credentials.
+ */
+export function invalidateDarajaConfigCache(): void {
+  cachedConfig = null;
+  cacheTimestamp = 0;
 }

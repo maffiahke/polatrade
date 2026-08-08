@@ -63,9 +63,9 @@ export async function POST(req: Request) {
     const reference = generateDepositReference();
 
     if (method === "mpesa") {
-      if (!isMpesaConfigured()) {
+      if (!(await isMpesaConfigured())) {
         return NextResponse.json(
-          { error: "M-Pesa not configured. Add MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_PASSKEY, and MPESA_SHORTCODE to .env" },
+          { error: "M-Pesa not configured. Add credentials in Admin > Payments > M-Pesa" },
           { status: 503 }
         );
       }

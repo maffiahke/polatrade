@@ -2,6 +2,7 @@ import { requireAdmin, unauthorized } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { invalidateDarajaConfigCache } from "@/lib/mpesa";
 
 export async function GET() {
   const session = await requireAdmin();
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
     update: { label, enabled, config: config ? JSON.stringify(config) : undefined },
     create: { name, label: label || name, enabled: enabled ?? true, config: config ? JSON.stringify(config) : "{}" },
   });
+
+  if (name === "mpesa") invalidateDarajaConfigCache();
+
   return NextResponse.json({ method });
 }
 
@@ -38,5 +42,8 @@ export async function PATCH(req: Request) {
   if (config !== undefined) updateData.config = JSON.stringify(config);
 
   const method = await prisma.paymentMethod.update({ where: { id }, data: updateData });
+
+  if (method.name === "mpesa") invalidateDarajaConfigCache();
+
   return NextResponse.json({ method });
 }
