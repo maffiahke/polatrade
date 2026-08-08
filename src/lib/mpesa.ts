@@ -179,7 +179,7 @@ export async function initiateStkPush(params: {
         PartyB: partyB,
         PhoneNumber: formattedPhone,
         CallBackURL: config.callbackUrl,
-        AccountReference: (params.accountReference ?? "SUMMITTRADES").slice(0, 12),
+        AccountReference: (params.accountReference ?? "SUMMITRADES").slice(0, 12),
         TransactionDesc: (params.transactionDesc ?? "Deposit").slice(0, 13),
       },
       {

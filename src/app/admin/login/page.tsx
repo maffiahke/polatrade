@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
             S
           </div>
           <h1 className="text-2xl font-extrabold text-white">Admin Panel</h1>
-          <p className="text-sm text-gray-500 mt-1">SummitTrades</p>
+          <p className="text-sm text-gray-500 mt-1">SummiTrades</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-[#0d0f17] border border-white/[0.07] rounded-2xl p-6 space-y-4">
