@@ -20,7 +20,7 @@ export function Footer() {
               Support
             </a>
           </div>
-          <div className="text-xs text-gray-500">© 2026 SummiTrades</div>
+          <div className="text-xs text-gray-500">© 2026 PolaTrades</div>
         </div>
       </div>
     </footer>

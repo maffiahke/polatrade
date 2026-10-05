@@ -78,7 +78,7 @@ try {
             </h1>
             <p className="text-sm text-gray-400 mb-8">
               {isLogin
-                ? "Log in to continue trading on SummiTrades"
+                ? "Log in to continue trading on PolaTrades"
                 : "Join over 1 million traders worldwide"}
             </p>
             <form onSubmit={handleSubmit} className="space-y-4">

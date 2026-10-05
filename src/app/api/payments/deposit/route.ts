@@ -102,7 +102,7 @@ export async function POST(req: Request) {
           phone: mpesaPhone,
           amountKes,
           accountReference: reference,
-          transactionDesc: "SummiTrades deposit",
+          transactionDesc: "PolaTrades deposit",
         });
 
         await prisma.transaction.update({

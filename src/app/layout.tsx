@@ -7,7 +7,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SummiTrades - Binary Trading Platform",
+  title: "PolaTrades - Binary Trading Platform",
   description: "Trade binary options on synthetic indices",
 };
 
