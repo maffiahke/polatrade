@@ -33,7 +33,7 @@ export function TickerMarquee() {
 
   return (
     <div className="border-y border-white/[0.07]">
-      <div className="overflow-hidden bg-[#1a1d27]/60 backdrop-blur-sm">
+      <div className="overflow-hidden bg-white/[0.04] backdrop-blur-sm">
         <div className="flex animate-marquee w-max py-3">
           {items.map((ticker, i) => (
             <TickerItem key={`${ticker.symbol}-${i}`} {...ticker} />

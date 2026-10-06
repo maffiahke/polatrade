@@ -48,7 +48,7 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section id="features" className="border-y border-white/[0.07] bg-[#191c26]">
+    <section id="features" className="border-y border-white/[0.07]">
       <div className="max-w-6xl mx-auto px-4 sm:px-5 py-12 sm:py-16 md:py-24">
         <div className="text-center mb-14">
           <p className="text-xs font-bold uppercase tracking-widest mb-3 text-gradient-brand">
@@ -62,7 +62,7 @@ export function Features() {
           {FEATURES.map(({ icon: Icon, title, desc, color }) => (
             <div
               key={title}
-              className="rounded-2xl p-6 border border-white/[0.07] bg-[#1c2030] hover:bg-[#222639] transition-all"
+              className="rounded-2xl p-6 border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-sm transition-all"
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
@@ -71,7 +71,7 @@ export function Features() {
                 <Icon className="w-5 h-5" style={{ color }} />
               </div>
               <h3 className="font-semibold mb-1.5 text-white">{title}</h3>
-              <p className="text-sm leading-relaxed text-gray-400">{desc}</p>
+              <p className="text-sm leading-relaxed text-gray-300">{desc}</p>
             </div>
           ))}
         </div>

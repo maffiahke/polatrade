@@ -29,7 +29,7 @@ export function LiveChartPreview() {
           className="hidden md:block absolute -inset-6 rounded-[2rem] blur-[50px] opacity-25"
           style={{ background: "var(--gradient-brand)" }}
         />
-        <div className="relative rounded-none md:rounded-2xl overflow-hidden border-y md:border border-white/[0.07] bg-[#1c2030] shadow-2xl shadow-black/30">
+        <div className="relative rounded-none md:rounded-2xl overflow-hidden border-y md:border border-white/[0.07] bg-white/[0.06] backdrop-blur-sm shadow-2xl shadow-black/20">
           <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-white/[0.07]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-[#f7931a]/15 flex items-center justify-center">
@@ -61,7 +61,7 @@ export function LiveChartPreview() {
           </div>
           <div className="flex flex-col md:flex-row">
             <div className="flex-1 relative">
-              <div className="h-48 sm:h-56 mx-0 my-0 md:m-4 rounded-none md:rounded-xl overflow-hidden relative bg-[#0f1219]">
+              <div className="h-48 sm:h-56 mx-0 my-0 md:m-4 rounded-none md:rounded-xl overflow-hidden relative bg-black/20 backdrop-blur-sm">
                 <div className="absolute inset-0 flex flex-col justify-between py-3 pointer-events-none">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="w-full border-t border-white/[0.03]" />

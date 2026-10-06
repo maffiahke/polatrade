@@ -45,12 +45,12 @@ export function Steps() {
             >
               {num}
             </div>
-            <div className="rounded-2xl p-6 pt-5 border border-white/[0.07] bg-[#1c2030]">
+            <div className="rounded-2xl p-6 pt-5 border border-white/[0.07] bg-white/[0.04] backdrop-blur-sm">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-4 bg-white/[0.04]">
                 <Icon className="w-5 h-5" style={{ color: "#833ab4" }} />
               </div>
               <h3 className="text-lg font-semibold mb-2 text-white">{title}</h3>
-              <p className="text-sm leading-relaxed text-gray-400">{desc}</p>
+              <p className="text-sm leading-relaxed text-gray-300">{desc}</p>
             </div>
           </div>
         ))}
