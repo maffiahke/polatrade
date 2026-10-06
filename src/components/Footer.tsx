@@ -5,7 +5,7 @@ export function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">
             <span className="text-sm font-extrabold tracking-tight">
-              <span className="text-gradient-brand">SUMMI</span>
+              <span className="text-gradient-brand">POLA</span>
               <span className="text-white">TRADES</span>
             </span>
           </div>

@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@summitdeno.com"
+                placeholder="admin@polatrades.com"
                 required
                 className="w-full bg-[#141822] border border-white/[0.08] rounded-xl pl-10 pr-3.5 py-3 text-sm text-white outline-none focus:border-[#833ab4]/50 transition"
               />
