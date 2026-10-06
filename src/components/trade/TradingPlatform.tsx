@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const mobileChartContainerRef = useRef<HTMLDivElement>(null);
 
-  // Guards against overlapping calls — the resolve-positions effect below
+  // Guards against overlapping calls â€” the resolve-positions effect below
   // calls syncFromApi() on every price tick (every ~800ms) while a
   // real-money trade sits expired-but-unsettled waiting for the server, so
   // without this a slow network could stack up many in-flight requests.
@@ -132,7 +132,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       // won/lost) waited on a separate, independently-timed fetch+parse.
       // Even though both numbers were always correct, the balance figure
       // could paint to the screen a render or two before the won/lost label
-      // did — looking like money moved before the outcome was visible, even
+      // did â€” looking like money moved before the outcome was visible, even
       // though the outcome had already been decided server-side by then.
       // Reading everything first and applying state together (balance last,
       // after positions) keeps the visible result and the balance change
@@ -149,7 +149,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         const fetched = (posData.trades ?? []).map(mapApiTrade);
 
         // Real-money trades are never settled locally (see the resolve
-        // effect above) — the server's settleExpiredTrades is the only
+        // effect above) â€” the server's settleExpiredTrades is the only
         // thing that decides won/lost for them. Detect here which real
         // (non-demo) positions just transitioned from "open" to settled
         // in this fetch, and push their server-confirmed profit into
@@ -176,7 +176,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
       // Applied last, in the same synchronous pass as the position update
       // above (no setTimeout). An earlier version of this delayed the
-      // balance update by 250ms to fix a display-ordering issue — but that
+      // balance update by 250ms to fix a display-ordering issue â€” but that
       // introduced a worse bug: if syncFromApi() runs again (e.g. for the
       // next trade) before a pending delayed update fires, the OLDER,
       // stale balance value could overwrite the newer correct one,
@@ -217,7 +217,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
     return () => clearInterval(priceInterval);
   }, [isAuthenticated, selectedAsset.id]);
 
-  // Redraw chart on container resize — observe both desktop and mobile containers
+  // Redraw chart on container resize â€” observe both desktop and mobile containers
   useEffect(() => {
     const desktopContainer = chartContainerRef.current;
     const mobileContainer = mobileChartContainerRef.current;
@@ -229,7 +229,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Reusable draw routine — called once per visible canvas so desktop and
+  // Reusable draw routine â€” called once per visible canvas so desktop and
   // mobile both render the live line independently (they don't share a canvas).
   const drawChartOnCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
@@ -346,7 +346,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   }, [priceHistory, price]);
 
   // Draw to both canvases (whichever is actually mounted/visible) whenever
-  // data changes. (Theme-based redraw removed — theme toggle is paused for now.)
+  // data changes. (Theme-based redraw removed â€” theme toggle is paused for now.)
   useEffect(() => {
     drawChartOnCanvas(desktopCanvasRef.current);
     drawChartOnCanvas(mobileCanvasRef.current);
@@ -361,7 +361,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   // Mirrors `positions` for synchronous reads inside placeTrade. placeTrade
   // is called repeatedly across renders by the auto-loop in OrderPanel, so a
   // closed-over `positions` value there could be stale by the time the call
-  // actually runs — this ref is always the latest committed state.
+  // actually runs â€” this ref is always the latest committed state.
   const positionsRef = useRef(positions);
   useEffect(() => {
     positionsRef.current = positions;
@@ -384,7 +384,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   // IMPORTANT: for real-money (authenticated, non-demo) trades, this effect
   // must NEVER decide won/lost or touch `balance` itself. It used to compute
   // `won` from this client's own locally-ticking `price`/clock and apply the
-  // result to balance immediately — but the server's settleExpiredTrades()
+  // result to balance immediately â€” but the server's settleExpiredTrades()
   // independently re-checks the SAME trade against its own price feed and
   // clock, moments later, when syncFromApi() runs. Those two checks aren't
   // guaranteed to agree right at the edge of a trade's expiry: by the time
@@ -392,7 +392,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   // the other direction. When they disagreed, this client had already
   // applied its own (sometimes wrong) guess straight to real balance,
   // producing exactly the "loss added to balance instead of subtracting it"
-  // symptom — the optimistic guess was simply wrong, and visible, until the
+  // symptom â€” the optimistic guess was simply wrong, and visible, until the
   // next sync silently corrected it back.
   //
   // Demo trades have no server authority to disagree with, so they keep
@@ -404,8 +404,8 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         if (p.status !== "open" || p.expiry > now) return p;
 
         if (!p.isDemo) {
-          // Real money: don't guess. Leave it "open" — the countdown clamps
-          // to 0s and the position just waits — until syncFromApi() (called
+          // Real money: don't guess. Leave it "open" â€” the countdown clamps
+          // to 0s and the position just waits â€” until syncFromApi() (called
           // right below) brings back the server's authoritative result.
           if (isAuthenticated) {
             syncFromApi();
@@ -419,7 +419,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
 
         // Demo: stake was already deducted at placement.
         // On win, credit back the full payout (stake + profit).
-        // On loss, nothing more to deduct — stake already gone.
+        // On loss, nothing more to deduct â€” stake already gone.
         setDemoBalance((b) => +(b + (won ? p.payout : 0)).toFixed(2));
 
         setSettledQueue((q) => [...q, { id: p.id, profit }]);
@@ -466,7 +466,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
     const activeBalance = isDemo ? demoBalance : balance;
 
     // Hard invariant: never more than one open position at a time. This is
-    // what makes target profit / stop loss strict — each trade settles fully
+    // what makes target profit / stop loss strict â€” each trade settles fully
     // (and is checked against the limits) before the next one can open, so
     // the resolve-positions effect below can never close two trades in the
     // same price tick and overshoot the stop/target by more than one trade.
@@ -536,7 +536,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
       return true;
     } catch (e) {
       console.error("Trade network error:", e);
-      setTradeError("Network error — please try again");
+      setTradeError("Network error â€” please try again");
       return false;
     }
   };
@@ -568,7 +568,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   return (
     <div className="h-[100dvh] bg-[#0a0c12] text-white flex flex-col overflow-hidden">
 
-      {/* ── Header ── */}
+      {/* â”€â”€ Header â”€â”€ */}
       <header
         className="shrink-0 border-b border-white/[0.07] bg-[#0a0c12]/95 backdrop-blur z-30"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
@@ -584,7 +584,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
               <Menu className="w-5 h-5" />
             </button>
             <span className="text-[13px] xs:text-sm sm:text-lg font-extrabold tracking-tight select-none whitespace-nowrap">
-              <span className="text-gradient-brand">SUMMI</span><span className="text-white">TRADES</span>
+              <span className="text-gradient-brand">POLA</span><span className="text-white">TRADES</span>
             </span>
           </div>
 
@@ -691,7 +691,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         </div>
       </header>
 
-      {/* ── Side nav drawer ── */}
+      {/* â”€â”€ Side nav drawer â”€â”€ */}
       {navMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setNavMenuOpen(false)} />
@@ -870,10 +870,10 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         </>
       )}
 
-      {/* ── Desktop / large tablet (md+) ── */}
+      {/* â”€â”€ Desktop / large tablet (md+) â”€â”€ */}
       <div className="hidden md:flex flex-1 overflow-hidden min-h-0 max-w-screen-2xl mx-auto w-full">
 
-        {/* Left: Positions — only visible on lg+ */}
+        {/* Left: Positions â€” only visible on lg+ */}
         <aside className="hidden lg:flex w-52 xl:w-64 2xl:w-72 border-r border-white/[0.07] flex-col shrink-0 bg-[#0d0f17]">
           <PositionsPanel
             positions={visiblePositions}
@@ -910,7 +910,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           >
             <canvas ref={desktopCanvasRef} className="absolute inset-0 w-full h-full" />
 
-            {/* Asset name + live price/change — overlaid top-left */}
+            {/* Asset name + live price/change â€” overlaid top-left */}
             <div className="absolute top-3 left-3 z-10">
               <button
                 onClick={() => setAssetDropdown((v) => !v)}
@@ -949,7 +949,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
               )}
             </div>
 
-            {/* PRICE box — overlaid top-right */}
+            {/* PRICE box â€” overlaid top-right */}
             <div className="absolute top-3 right-3 z-10 bg-black/30 backdrop-blur-sm rounded-xl px-4 py-2 text-right">
               <div className="text-[9px] text-gray-400 font-semibold uppercase tracking-wider">Price</div>
               <div className="text-lg font-bold text-white tabular-nums leading-tight">{price.toFixed(2)}</div>
@@ -977,7 +977,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           {/* Live last-digit tracker */}
           <LiveDigitTracker price={price} priceHistory={priceHistory} />
 
-          {/* Positions strip — md only (tablet, no sidebar) */}
+          {/* Positions strip â€” md only (tablet, no sidebar) */}
           <div className="lg:hidden border-t border-white/[0.07] h-40 shrink-0 overflow-hidden bg-[#0d0f17]">
             <PositionsPanel
               positions={visiblePositions}
@@ -995,7 +995,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
         </aside>
       </div>
 
-      {/* ── Mobile (< md): tabbed layout ── */}
+      {/* â”€â”€ Mobile (< md): tabbed layout â”€â”€ */}
       <div className="flex md:hidden flex-1 flex-col overflow-hidden min-h-0">
         {/* Trade tab stays mounted (hidden off-tab) so order-panel settings
             like Runs are preserved when the user hops to the AI/Positions
@@ -1024,12 +1024,12 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                 })}
               </div>
 
-              {/* Chart card — asset info and price overlaid, TagBinary style */}
+              {/* Chart card â€” asset info and price overlaid, TagBinary style */}
               <div className="px-2 py-1.5 bg-[#0a0c12] shrink-0">
                 <div ref={mobileChartContainerRef} className="h-[22vh] min-h-[150px] max-h-[230px] relative bg-[#070809] rounded-xl border border-white/[0.07] overflow-hidden">
                   <canvas ref={mobileCanvasRef} className="absolute inset-0 w-full h-full" />
 
-                  {/* Asset name + live price/change — overlaid top-left */}
+                  {/* Asset name + live price/change â€” overlaid top-left */}
                   <div className="absolute top-2 left-2 z-10">
                     <button
                       onClick={() => setAssetDropdown((v) => !v)}
@@ -1070,7 +1070,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                     )}
                   </div>
 
-                  {/* PRICE box — overlaid top-right */}
+                  {/* PRICE box â€” overlaid top-right */}
                   <div className="absolute top-2 right-2 z-10 bg-black/30 backdrop-blur-sm rounded-xl px-3 py-1.5 text-right">
                     <div className="text-[8px] sm:text-[9px] text-gray-400 font-semibold uppercase tracking-wider">Price</div>
                     <div className="text-sm sm:text-base font-bold text-white tabular-nums leading-tight">
@@ -1098,7 +1098,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
                 </div>
               </div>
 
-              {/* Live last-digit tracker — sits right under the chart, scrolls with it */}
+              {/* Live last-digit tracker â€” sits right under the chart, scrolls with it */}
               <LiveDigitTracker price={price} priceHistory={priceHistory} />
 
               {/* Order panel */}
@@ -1140,7 +1140,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
           </div>
         )}
 
-        {/* Bottom nav — floats fixed over scrolling content, never part of document flow */}
+        {/* Bottom nav â€” floats fixed over scrolling content, never part of document flow */}
         <nav
           className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-white/[0.07] bg-[#0a0c12] shadow-[0_-4px_16px_rgba(0,0,0,0.4)]"
           style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
@@ -1197,7 +1197,7 @@ export function TradingPlatform({ forceDemo = false }: TradingPlatformProps) {
   );
 }
 
-// ── LiveDigitTracker ──
+// â”€â”€ LiveDigitTracker â”€â”€
 // Shows the last-digit frequency distribution from real price history,
 // with a moving cursor pointing at whichever digit the current price tick landed on.
 function LiveDigitTracker({ price, priceHistory }: { price: number; priceHistory: number[] }) {
@@ -1260,10 +1260,10 @@ function LiveDigitTracker({ price, priceHistory }: { price: number; priceHistory
   );
 }
 
-// ── EntryScannerModal ──
+// â”€â”€ EntryScannerModal â”€â”€
 // Analyzes the currently selected index with live ticks, scores every trade
 // type (Even/Odd, Over/Under, Match/Differ), and surfaces the strongest entry
-// point — mirroring TagBinary's "Deep Scan for Best Market" tool while keeping
+// point â€” mirroring TagBinary's "Deep Scan for Best Market" tool while keeping
 // the user's selected volatility index unchanged.
 type ScanMarket = "Even/Odd" | "Over/Under" | "Match/Differ";
 
@@ -1306,7 +1306,7 @@ function scoreDigits(market: ScanMarket, digits: number[]): { direction: string;
     return { direction, digit: best.digit, confidence: Math.max(best.overPct, best.underPct) };
   }
 
-  // Match/Differ — least-frequent digit gets the Match call (best edge, since
+  // Match/Differ â€” least-frequent digit gets the Match call (best edge, since
   // Match pays far more than Differ). Confidence reflects how lopsided the
   // recent digit spread is, so it stays in a realistic range.
   const counts = Array(10).fill(0);
@@ -1356,7 +1356,7 @@ function EntryScannerModal({
     let bestScore = 0;
 
     for (let p = 1; p <= TOTAL_PASSES; p++) {
-      setCurrentAssetName(`Pass ${p} — analyzing ${selectedAsset.name}…`);
+      setCurrentAssetName(`Pass ${p} â€” analyzing ${selectedAsset.name}â€¦`);
 
       // Pull a fresh batch of live ticks for the selected index only, so the
       // volatility the user picked is always maintained after the scan.
@@ -1461,7 +1461,7 @@ function EntryScannerModal({
                   <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Prediction (Auto)</p>
                   <div className="bg-[#141822] rounded-lg px-3 py-2 text-sm text-white font-semibold">
                     {result.direction}
-                    {result.digit !== undefined && ` · digit ${result.digit}`}
+                    {result.digit !== undefined && ` Â· digit ${result.digit}`}
                   </div>
                 </div>
               </div>
@@ -1483,7 +1483,7 @@ function EntryScannerModal({
             {scanning ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                Scanning {currentAssetName || "…"}
+                Scanning {currentAssetName || "â€¦"}
               </>
             ) : (
               <>
