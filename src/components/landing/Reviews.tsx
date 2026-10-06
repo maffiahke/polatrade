@@ -65,7 +65,7 @@ export function Reviews() {
                   />
                 ))}
               </div>
-              <p className="text-sm leading-relaxed mb-4 text-gray-300">"{quote}"</p>
+              <p className="text-sm leading-relaxed mb-4 text-gray-300">{quote}</p>
               <div className="flex items-center gap-3 mt-auto">
                 <div className="w-8 h-8 rounded-full bg-white/[0.08] flex items-center justify-center text-xs font-bold text-white">
                   {name.charAt(0)}
