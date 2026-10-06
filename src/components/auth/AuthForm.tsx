@@ -66,13 +66,13 @@ try {
   const isLogin = mode === "login";
 
   return (
-    <div className="min-h-screen-safe bg-[#13161e] flex flex-col safe-top safe-x">
+    <div className="min-h-screen-safe bg-home-gradient flex flex-col safe-top safe-x">
       <div className="p-4 sm:p-5">
         <Logo />
       </div>
       <div className="flex-1 flex items-center justify-center px-4 sm:px-5 pb-8 sm:pb-16 safe-bottom">
         <div className="w-full max-w-md">
-          <div className="rounded-2xl border border-white/[0.07] bg-[#1c2030] p-5 sm:p-8 shadow-2xl">
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] backdrop-blur-sm p-5 sm:p-8 shadow-2xl">
             <h1 className="text-2xl font-bold text-white mb-1">
               {isLogin ? "Welcome back" : "Create account"}
             </h1>
@@ -90,7 +90,7 @@ try {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition"
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition"
                   />
                 </div>
               )}
@@ -102,7 +102,7 @@ try {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition"
                 />
               </div>
               {!isLogin && (
@@ -115,7 +115,7 @@ try {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+XX XXX XXX"
-                    className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition"
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition"
                   />
                 </div>
               )}
@@ -129,7 +129,7 @@ try {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 rounded-xl bg-[#13161e] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition pr-11"
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.07] text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#833ab4]/50 focus:ring-1 focus:ring-[#833ab4]/30 transition pr-11"
                   />
                   <button
                     type="button"
