@@ -4,20 +4,17 @@ export function AppDownload() {
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-5 pb-12 sm:pb-16 md:pb-24">
       <div
-        className="relative rounded-3xl overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, #1e3a8a 0%, #2563EB 40%, #0ea5e9 100%)",
-        }}
+        className="relative rounded-3xl overflow-hidden border border-white/[0.07] bg-white/[0.04] backdrop-blur-sm"
       >
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-white/[0.06] blur-3xl translate-x-20 -translate-y-20" />
-          <div className="absolute bottom-0 left-0 w-56 h-56 rounded-full bg-[#06b6d4]/20 blur-3xl -translate-x-10 translate-y-10" />
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-purple-500/10 blur-3xl translate-x-20 -translate-y-20" />
+          <div className="absolute bottom-0 left-0 w-56 h-56 rounded-full bg-cyan-500/10 blur-3xl -translate-x-10 translate-y-10" />
         </div>
         <div className="relative flex flex-col md:flex-row items-center gap-6 md:gap-12 px-6 py-10 md:px-12 md:py-14">
           <div className="shrink-0 relative">
-            <div className="w-[72px] h-[140px] md:w-24 md:h-[180px] rounded-[18px] md:rounded-[22px] border-[3px] border-white/20 bg-gradient-to-b from-white/10 to-white/[0.03] backdrop-blur-sm flex flex-col items-center justify-center gap-2 shadow-2xl">
+            <div className="w-[72px] h-[140px] md:w-24 md:h-[180px] rounded-[18px] md:rounded-[22px] border-[3px] border-white/20 bg-white/[0.06] backdrop-blur-sm flex flex-col items-center justify-center gap-2 shadow-2xl">
               <div className="w-8 h-1 md:w-10 md:h-1.5 rounded-full bg-white/20 absolute top-2" />
-              <div className="w-8 h-8 md:w-11 md:h-11 rounded-xl bg-white/15 flex items-center justify-center">
+              <div className="w-8 h-8 md:w-11 md:h-11 rounded-xl bg-white/10 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </div>
               <span className="text-[8px] md:text-[10px] font-bold text-white/70">PolaTrades</span>

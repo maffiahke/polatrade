@@ -26,7 +26,8 @@
 
 /* ── Home page gradient background ── */
 .bg-home-gradient {
-  background: radial-gradient(circle, #6A0F8F 0%, #000080 100%);
+  background: radial-gradient(ellipse 120% 80% at 50% 0%, #6A0F8F 0%, #000080 55%, #000030 100%);
+  min-height: 100vh;
 }
 
 @keyframes marquee {
